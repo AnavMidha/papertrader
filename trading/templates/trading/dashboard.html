@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — PaperTrader{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">Cash Balance</div>
+    <div class="stat-value">&#8377;{{ portfolio.cash|floatformat:2 }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Portfolio Value</div>
+    <div class="stat-value">&#8377;{{ total_value|floatformat:2 }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total P&L</div>
+    <div class="stat-value {% if total_pnl >= 0 %}green{% else %}red{% endif %}">
+      {% if total_pnl >= 0 %}+{% endif %}&#8377;{{ total_pnl|floatformat:2 }}
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total Return</div>
+    <div class="stat-value {% if total_return_pct >= 0 %}green{% else %}red{% endif %}">
+      {% if total_return_pct >= 0 %}+{% endif %}{{ total_return_pct|floatformat:2 }}%
+    </div>
+  </div>
+</div>
+
+<div class="ticker-row">
+  {% for item in watchlist_data %}
+  <div class="ticker-chip" onclick="selectSymbol('{{ item.symbol }}')">
+    <span>{{ item.symbol }}</span>
+    <span class="chip-px">{% if item.price %}&#8377;{{ item.price|floatformat:2 }}{% else %}&mdash;{% endif %}</span>
+  </div>
+  {% endfor %}
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 380px;gap:18px;align-items:start">
+
+  <div style="display:flex;flex-direction:column;gap:18px">
+
+    <div class="panel">
+      <div class="panel-title">Portfolio Growth</div>
+      <div style="position:relative;height:220px">
+        <canvas id="growthChart"></canvas>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="tab-bar">
+        <div class="tab active" onclick="switchTab('holdings',this)">Holdings</div>
+        <div class="tab" onclick="switchTab('history',this)">Recent Trades</div>
+      </div>
+
+      <div id="holdingsTab">
+        {% if holdings %}
+        <table class="data-table">
+          <thead>
+            <tr><th>Symbol</th><th>Shares</th><th>Avg Cost</th><th>Current</th><th>P&L</th><th>Value</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for h in holdings %}
+            <tr>
+              <td><span class="sym">{{ h.symbol }}</span></td>
+              <td>{{ h.shares|floatformat:0 }}</td>
+              <td>&#8377;{{ h.avg_cost|floatformat:2 }}</td>
+              <td>&#8377;{{ h.current_value|floatformat:2 }}</td>
+              <td class="{% if h.unrealized_pnl >= 0 %}green{% else %}red{% endif %}">
+                {% if h.unrealized_pnl >= 0 %}+{% endif %}&#8377;{{ h.unrealized_pnl|floatformat:2 }}<br>
+                <span style="font-size:10px">{% if h.unrealized_pnl_pct >= 0 %}+{% endif %}{{ h.unrealized_pnl_pct|floatformat:2 }}%</span>
+              </td>
+              <td>&#8377;{{ h.current_value|floatformat:2 }}</td>
+              <td>
+                <form method="post" action="{% url 'trade' %}" style="display:inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="symbol" value="{{ h.symbol }}" />
+                  <input type="hidden" name="action" value="sell" />
+                  <input type="hidden" name="qty" value="{{ h.shares|floatformat:0 }}" />
+                  <button type="submit" class="btn-sell-sm">Sell All</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty">No positions yet. Search for a stock and place your first trade</div>
+        {% endif %}
+      </div>
+
+      <div id="historyTab" style="display:none">
+        {% if recent_txns %}
+        <table class="data-table">
+          <thead>
+            <tr><th>Symbol</th><th>Action</th><th>Shares</th><th>Price</th><th>Total</th><th>P&L</th><th>Time</th></tr>
+          </thead>
+          <tbody>
+            {% for t in recent_txns %}
+            <tr>
+              <td><span class="sym">{{ t.symbol }}</span></td>
+              <td><span class="badge badge-{{ t.action }}">{{ t.action }}</span></td>
+              <td>{{ t.shares|floatformat:0 }}</td>
+              <td>&#8377;{{ t.price|floatformat:2 }}</td>
+              <td>&#8377;{{ t.total|floatformat:2 }}</td>
+              <td>
+                {% if t.realized_pnl != None %}
+                <span class="{% if t.realized_pnl >= 0 %}green{% else %}red{% endif %}">
+                  {% if t.realized_pnl >= 0 %}+{% endif %}&#8377;{{ t.realized_pnl|floatformat:2 }}
+                </span>
+                {% else %}&mdash;{% endif %}
+              </td>
+              <td>{{ t.timestamp|date:"M d H:i" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div style="padding:12px 0 0;text-align:right">
+          <a href="{% url 'history' %}" style="font-size:12px;color:var(--accent2)">View full history</a>
+        </div>
+        {% else %}
+        <div class="empty">No trades yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:18px">
+
+    <div class="panel">
+      <div class="panel-title">Place Order</div>
+      <div style="position:relative;margin-bottom:14px">
+        <div class="field">
+          <label>Search Stock</label>
+          <input type="text" id="searchInput" placeholder="Search e.g. Tata, Reliance, Infosys..."
+                 oninput="searchStocks(this.value)" autocomplete="off" style="width:100%" />
+        </div>
+        <div id="searchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:#0d1424;border:1px solid #1a2540;border-radius:10px;z-index:50;overflow:hidden;margin-top:4px;"></div>
+      </div>
+
+      <form method="post" action="{% url 'trade' %}" id="tradeForm">
+        {% csrf_token %}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div class="field">
+            <label>Symbol</label>
+            <input type="text" name="symbol" id="symbolInput" placeholder="TCS.NS" required
+                   oninput="this.value=this.value.toUpperCase();fetchPrice()" />
+          </div>
+          <div class="field">
+            <label>Shares</label>
+            <input type="number" name="qty" id="qtyInput" placeholder="10" min="1" step="1" required oninput="updateEstimate()" />
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div>
+            <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Live Price</div>
+            <div class="price-display" id="priceDisplay">&mdash;</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Est. Total</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--text)" id="estTotal">&mdash;</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <button type="submit" name="action" value="buy" class="btn-buy">Buy</button>
+          <button type="submit" name="action" value="sell" class="btn-sell">Sell</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Watchlist</div>
+      {% for item in watchlist_data %}
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg3);cursor:pointer"
+           onclick="selectSymbol('{{ item.symbol }}')">
+        <span style="font-weight:600;font-size:13px;color:var(--text)">{{ item.symbol }}</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--accent2)">
+          {% if item.price %}&#8377;{{ item.price|floatformat:2 }}{% else %}&mdash;{% endif %}
+        </span>
+      </div>
+      {% endfor %}
+      <div style="padding-top:12px;font-size:11px;color:var(--text3)">Click any symbol to auto-fill the order form.</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Account Summary</div>
+      <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--text2)">Starting Capital</span>
+          <span style="font-family:'IBM Plex Mono',monospace">&#8377;10,00,000.00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--text2)">Cash Available</span>
+          <span style="font-family:'IBM Plex Mono',monospace">&#8377;{{ portfolio.cash|floatformat:2 }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--text2)">Invested</span>
+          <span style="font-family:'IBM Plex Mono',monospace">&#8377;{{ holdings_value|floatformat:2 }}</span>
+        </div>
+        <div style="height:1px;background:var(--border);margin:4px 0"></div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--text2)">Total Positions</span>
+          <span style="font-family:'IBM Plex Mono',monospace">{{ holdings|length }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--text2)">Total Trades</span>
+          <span style="font-family:'IBM Plex Mono',monospace">{{ portfolio.transactions.count }}</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function switchTab(name, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+    document.getElementById('holdingsTab').style.display = name === 'holdings' ? 'block' : 'none';
+    document.getElementById('historyTab').style.display  = name === 'history'  ? 'block' : 'none';
+  }
+
+  function selectSymbol(sym) {
+    document.getElementById('symbolInput').value = sym;
+    document.getElementById('searchInput').value = '';
+    document.getElementById('searchResults').style.display = 'none';
+    fetchPrice();
+  }
+
+  let priceCache = {};
+  let fetchTimer = null;
+
+  function fetchPrice() {
+    const sym = document.getElementById('symbolInput').value.trim().toUpperCase();
+    if (!sym) { document.getElementById('priceDisplay').textContent = '\u2014'; return; }
+    if (priceCache[sym]) { applyPrice(priceCache[sym]); return; }
+    clearTimeout(fetchTimer);
+    fetchTimer = setTimeout(() => {
+      fetch('/api/quote/?symbol=' + sym)
+        .then(r => r.json())
+        .then(d => {
+          if (d.price) { priceCache[sym] = d.price; applyPrice(d.price); }
+          else document.getElementById('priceDisplay').textContent = 'N/A';
+        })
+        .catch(() => document.getElementById('priceDisplay').textContent = 'Err');
+    }, 400);
+  }
+
+  function applyPrice(price) {
+    document.getElementById('priceDisplay').textContent = '\u20b9' + price.toFixed(2);
+    updateEstimate();
+  }
+
+  function updateEstimate() {
+    const txt = document.getElementById('priceDisplay').textContent;
+    const qty = parseFloat(document.getElementById('qtyInput').value) || 0;
+    if (txt.startsWith('\u20b9') && qty > 0) {
+      const price = parseFloat(txt.replace('\u20b9',''));
+      document.getElementById('estTotal').textContent = '\u20b9' + (price * qty).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+    } else {
+      document.getElementById('estTotal').textContent = '\u2014';
+    }
+  }
+
+  let searchTimer = null;
+  function searchStocks(query) {
+    const box = document.getElementById('searchResults');
+    if (!query || query.length < 2) { box.style.display = 'none'; return; }
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      fetch('/api/search/?q=' + encodeURIComponent(query))
+        .then(r => r.json())
+        .then(data => {
+          if (!data.results.length) { box.style.display = 'none'; return; }
+          box.innerHTML = data.results.map(r =>
+            '<div onclick="selectSymbol(\'' + r.symbol + '\')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1a2540;" onmouseover="this.style.background=\'#111b2e\'" onmouseout="this.style.background=\'transparent\'">' +
+            '<div><span style="font-weight:600;color:#e4eaf5;font-size:13px">' + r.symbol + '</span>' +
+            '<span style="color:#7a8fad;font-size:12px;margin-left:8px">' + r.description + '</span></div>' +
+            '<span style="font-size:11px;color:#3b82f6">Select</span></div>'
+          ).join('');
+          box.style.display = 'block';
+        });
+    }, 300);
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#searchInput') && !e.target.closest('#searchResults')) {
+      document.getElementById('searchResults').style.display = 'none';
+    }
+  });
+
+  const labels = {{ chart_labels|safe }};
+  const values = {{ chart_values|safe }};
+  const baseline = 1000000;
+  const borderColor = values.length && values[values.length-1] >= baseline ? '#22d3a5' : '#f4677a';
+
+  new Chart(document.getElementById('growthChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        borderColor,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        fill: true,
+        backgroundColor: (ctx) => {
+          const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 220);
+          gradient.addColorStop(0, borderColor + '33');
+          gradient.addColorStop(1, borderColor + '00');
+          return gradient;
+        },
+        tension: 0.3,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => '\u20b9' + ctx.parsed.y.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#3d5070', font: { family: "'IBM Plex Mono'", size: 10 }, maxTicksLimit: 8 },
+          grid: { color: '#1a2540' },
+        },
+        y: {
+          ticks: { color: '#3d5070', font: { family: "'IBM Plex Mono'", size: 10 },
+            callback: v => '\u20b9' + v.toLocaleString('en-IN') },
+          grid: { color: '#1a2540' },
+        }
+      }
+    }
+  });
+</script>
+{% endblock %}

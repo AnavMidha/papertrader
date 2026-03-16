@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Trade History — PaperTrader{% endblock %}
+{% block nav_history %}active{% endblock %}
+
+{% block content %}
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+  <div>
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:4px">Trade History</h1>
+    <p style="font-size:13px;color:var(--text2)">Every trade made by {{ request.user.username }}</p>
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Total Realized P&amp;L</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:500;
+         color:{% if total_realized >= 0 %}var(--green){% else %}var(--red){% endif %}">
+      {% if total_realized >= 0 %}+{% endif %}&#8377;{{ total_realized|floatformat:2 }}
+    </div>
+  </div>
+</div>
+
+<div class="panel" style="margin-bottom:18px">
+  <form method="get" style="display:flex;gap:12px;align-items:flex-end">
+    <div class="field" style="flex:1">
+      <label>Filter by Symbol</label>
+      <input type="text" name="symbol" value="{{ symbol_filter }}" placeholder="e.g. TCS.NS" oninput="this.value=this.value.toUpperCase()" />
+    </div>
+    <div class="field" style="width:160px">
+      <label>Action</label>
+      <select name="action">
+        <option value="">All</option>
+        <option value="buy"  {% if action_filter == 'buy'  %}selected{% endif %}>Buy</option>
+        <option value="sell" {% if action_filter == 'sell' %}selected{% endif %}>Sell</option>
+      </select>
+    </div>
+    <button type="submit" class="btn-buy" style="padding:9px 20px">Filter</button>
+    <a href="{% url 'history' %}" style="padding:9px 16px;border:1px solid var(--border2);border-radius:10px;font-size:13px;color:var(--text2);display:flex;align-items:center">Clear</a>
+  </form>
+</div>
+
+<div class="panel">
+  {% if transactions %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Symbol</th>
+        <th>Action</th>
+        <th>Shares</th>
+        <th>Price</th>
+        <th>Total Value</th>
+        <th>Realized P&amp;L</th>
+        <th>Date &amp; Time</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in transactions %}
+      <tr>
+        <td style="color:var(--text3)">{{ forloop.counter }}</td>
+        <td><span class="sym">{{ t.symbol }}</span></td>
+        <td><span class="badge badge-{{ t.action }}">{{ t.action }}</span></td>
+        <td>{{ t.shares|floatformat:0 }}</td>
+        <td>&#8377;{{ t.price|floatformat:2 }}</td>
+        <td>&#8377;{{ t.total|floatformat:2 }}</td>
+        <td>
+          {% if t.realized_pnl != None %}
+            <span class="{% if t.realized_pnl >= 0 %}green{% else %}red{% endif %}">
+              {% if t.realized_pnl >= 0 %}+{% endif %}&#8377;{{ t.realized_pnl|floatformat:2 }}
+            </span>
+          {% else %}
+            <span style="color:var(--text3)">—</span>
+          {% endif %}
+        </td>
+        <td>{{ t.timestamp|date:"M d, Y · H:i" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div style="padding:16px 10px 0;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);margin-top:8px">
+    <span style="font-size:12px;color:var(--text2)">{{ transactions|length }} trade{{ transactions|length|pluralize }}</span>
+    <a href="{% url 'dashboard' %}" style="font-size:12px;color:var(--accent2)">Back to Dashboard</a>
+  </div>
+  {% else %}
+  <div class="empty">
+    No trades found{% if symbol_filter or action_filter %} matching your filters{% endif %}.
+    {% if symbol_filter or action_filter %}
+    <br><a href="{% url 'history' %}" style="font-size:12px;margin-top:8px;display:inline-block">Clear filters</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
