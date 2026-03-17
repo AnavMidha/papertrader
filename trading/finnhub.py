@@ -1,128 +1,133 @@
 import requests
 
-ALPHA_VANTAGE_KEY = "3R82IPUSCA445BT4"
-ALPHA_BASE = "https://www.alphavantage.co/query"
+FINNHUB_KEY = "d6rvhhhr01qpss2hpcpgd6rvhhhr01qpss2hpcq0"
+FINNHUB_BASE = "https://finnhub.io/api/v1"
+USD_TO_INR = 90.0
 
-MOCK_PRICES = {
-    'RELIANCE.NS': 2850.00, 'TCS.NS': 2409.20, 'INFY.NS': 1249.80,
-    'HDFCBANK.NS': 840.60, 'ICICIBANK.NS': 1050.00, 'SBIN.NS': 1066.70,
-    'WIPRO.NS': 480.00, 'HINDUNILVR.NS': 2400.00, 'ITC.NS': 450.00,
-    'BAJFINANCE.NS': 878.15, 'ADANIENT.NS': 2400.00, 'TATAMOTORS.NS': 950.00,
-    'TATAPOWER.NS': 380.00, 'TATASTEEL.NS': 140.00, 'MARUTI.NS': 12500.00,
-    'SUNPHARMA.NS': 1600.00, 'HCLTECH.NS': 1450.00, 'AXISBANK.NS': 1100.00,
-    'KOTAKBANK.NS': 1800.00, 'LT.NS': 3500.00, 'ONGC.NS': 280.00,
-    'NTPC.NS': 360.00, 'ZOMATO.NS': 220.00, 'PAYTM.NS': 340.00,
-    'IRCTC.NS': 780.00, 'NYKAA.NS': 180.00, 'DMART.NS': 3800.00,
-    'BAJAJFINSV.NS': 1600.00, 'ASIANPAINT.NS': 2200.00, 'NESTLEIND.NS': 2200.00,
-    'TITAN.NS': 3200.00, 'ADANIPORTS.NS': 1200.00, 'HAL.NS': 4200.00,
-    'BEL.NS': 280.00, 'IRFC.NS': 180.00, 'RVNL.NS': 420.00,
+MOCK_PRICES_USD = {
+    'AAPL': 213.0, 'MSFT': 415.0, 'GOOGL': 175.0, 'AMZN': 198.0,
+    'NVDA': 875.0, 'META': 535.0, 'TSLA': 175.0, 'NFLX': 628.0,
+    'AMD': 155.0, 'INTC': 35.0, 'ORCL': 122.0, 'CRM': 295.0,
+    'ADBE': 450.0, 'PYPL': 65.0, 'UBER': 68.0, 'LYFT': 19.0,
+    'SPOT': 255.0, 'SHOP': 75.0, 'SNOW': 145.0, 'PLTR': 24.0,
+    'BABA': 75.0, 'DIS': 110.0, 'NIKE': 75.0, 'SBUX': 80.0,
+    'COIN': 185.0, 'SQ': 65.0, 'JPM': 195.0, 'BAC': 38.0,
+    'GS': 450.0, 'V': 275.0, 'MA': 455.0, 'WMT': 68.0,
+    'COST': 780.0, 'TGT': 145.0,
 }
 
-DEFAULT_WATCHLIST = [
-    'RELIANCE.NS', 'TCS.NS', 'INFY.NS',
-    'HDFCBANK.NS', 'SBIN.NS', 'BAJFINANCE.NS'
-]
+DEFAULT_WATCHLIST = ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'TSLA', 'AMZN']
 
 STOCK_LIST = [
-    {'symbol': 'RELIANCE.NS', 'description': 'Reliance Industries'},
-    {'symbol': 'TCS.NS', 'description': 'Tata Consultancy Services'},
-    {'symbol': 'INFY.NS', 'description': 'Infosys Ltd'},
-    {'symbol': 'HDFCBANK.NS', 'description': 'HDFC Bank'},
-    {'symbol': 'ICICIBANK.NS', 'description': 'ICICI Bank'},
-    {'symbol': 'SBIN.NS', 'description': 'State Bank of India'},
-    {'symbol': 'WIPRO.NS', 'description': 'Wipro Ltd'},
-    {'symbol': 'HINDUNILVR.NS', 'description': 'Hindustan Unilever'},
-    {'symbol': 'ITC.NS', 'description': 'ITC Ltd'},
-    {'symbol': 'BAJFINANCE.NS', 'description': 'Bajaj Finance'},
-    {'symbol': 'ADANIENT.NS', 'description': 'Adani Enterprises'},
-    {'symbol': 'TATAMOTORS.NS', 'description': 'Tata Motors'},
-    {'symbol': 'TATAPOWER.NS', 'description': 'Tata Power'},
-    {'symbol': 'TATASTEEL.NS', 'description': 'Tata Steel'},
-    {'symbol': 'MARUTI.NS', 'description': 'Maruti Suzuki'},
-    {'symbol': 'SUNPHARMA.NS', 'description': 'Sun Pharmaceutical'},
-    {'symbol': 'HCLTECH.NS', 'description': 'HCL Technologies'},
-    {'symbol': 'AXISBANK.NS', 'description': 'Axis Bank'},
-    {'symbol': 'KOTAKBANK.NS', 'description': 'Kotak Mahindra Bank'},
-    {'symbol': 'LT.NS', 'description': 'Larsen and Toubro'},
-    {'symbol': 'ONGC.NS', 'description': 'Oil and Natural Gas Corp'},
-    {'symbol': 'NTPC.NS', 'description': 'NTPC Ltd'},
-    {'symbol': 'ZOMATO.NS', 'description': 'Zomato Ltd'},
-    {'symbol': 'PAYTM.NS', 'description': 'Paytm One97 Communications'},
-    {'symbol': 'IRCTC.NS', 'description': 'Indian Railway Catering IRCTC'},
-    {'symbol': 'NYKAA.NS', 'description': 'FSN E-Commerce Nykaa'},
-    {'symbol': 'DMART.NS', 'description': 'Avenue Supermarts DMart'},
-    {'symbol': 'BAJAJFINSV.NS', 'description': 'Bajaj Finserv'},
-    {'symbol': 'ASIANPAINT.NS', 'description': 'Asian Paints'},
-    {'symbol': 'NESTLEIND.NS', 'description': 'Nestle India'},
-    {'symbol': 'TITAN.NS', 'description': 'Titan Company'},
-    {'symbol': 'ADANIPORTS.NS', 'description': 'Adani Ports'},
-    {'symbol': 'HAL.NS', 'description': 'Hindustan Aeronautics HAL'},
-    {'symbol': 'BEL.NS', 'description': 'Bharat Electronics BEL'},
-    {'symbol': 'IRFC.NS', 'description': 'Indian Railway Finance IRFC'},
-    {'symbol': 'RVNL.NS', 'description': 'Rail Vikas Nigam RVNL'},
-    {'symbol': 'TRENT.NS', 'description': 'Trent Zudio Westside'},
-    {'symbol': 'NAUKRI.NS', 'description': 'Info Edge Naukri'},
-    {'symbol': 'HAVELLS.NS', 'description': 'Havells India'},
-    {'symbol': 'DRREDDY.NS', 'description': 'Dr Reddys Laboratories'},
-    {'symbol': 'CIPLA.NS', 'description': 'Cipla Ltd'},
-    {'symbol': 'EICHERMOT.NS', 'description': 'Eicher Motors Royal Enfield'},
-    {'symbol': 'HEROMOTOCO.NS', 'description': 'Hero MotoCorp'},
-    {'symbol': 'COALINDIA.NS', 'description': 'Coal India'},
-    {'symbol': 'JSWSTEEL.NS', 'description': 'JSW Steel'},
-    {'symbol': 'HINDALCO.NS', 'description': 'Hindalco Industries'},
-    {'symbol': 'INDUSINDBK.NS', 'description': 'IndusInd Bank'},
-    {'symbol': 'PNB.NS', 'description': 'Punjab National Bank'},
-    {'symbol': 'BANKBARODA.NS', 'description': 'Bank of Baroda'},
-    {'symbol': 'ULTRACEMCO.NS', 'description': 'UltraTech Cement'},
-    {'symbol': 'TECHM.NS', 'description': 'Tech Mahindra'},
-    {'symbol': 'PIDILITIND.NS', 'description': 'Pidilite Industries Fevicol'},
-    {'symbol': 'COLPAL.NS', 'description': 'Colgate Palmolive India'},
-    {'symbol': 'MARICO.NS', 'description': 'Marico Ltd'},
-    {'symbol': 'DABUR.NS', 'description': 'Dabur India'},
-    {'symbol': 'GODREJCP.NS', 'description': 'Godrej Consumer Products'},
+    {'symbol': 'AAPL',  'description': 'Apple Inc'},
+    {'symbol': 'MSFT',  'description': 'Microsoft Corporation'},
+    {'symbol': 'GOOGL', 'description': 'Alphabet Google'},
+    {'symbol': 'AMZN',  'description': 'Amazon.com Inc'},
+    {'symbol': 'NVDA',  'description': 'NVIDIA Corporation'},
+    {'symbol': 'META',  'description': 'Meta Platforms Facebook'},
+    {'symbol': 'TSLA',  'description': 'Tesla Inc'},
+    {'symbol': 'NFLX',  'description': 'Netflix Inc'},
+    {'symbol': 'AMD',   'description': 'Advanced Micro Devices'},
+    {'symbol': 'INTC',  'description': 'Intel Corporation'},
+    {'symbol': 'ORCL',  'description': 'Oracle Corporation'},
+    {'symbol': 'CRM',   'description': 'Salesforce Inc'},
+    {'symbol': 'ADBE',  'description': 'Adobe Inc'},
+    {'symbol': 'PYPL',  'description': 'PayPal Holdings'},
+    {'symbol': 'UBER',  'description': 'Uber Technologies'},
+    {'symbol': 'LYFT',  'description': 'Lyft Inc'},
+    {'symbol': 'SPOT',  'description': 'Spotify Technology'},
+    {'symbol': 'SHOP',  'description': 'Shopify Inc'},
+    {'symbol': 'SNOW',  'description': 'Snowflake Inc'},
+    {'symbol': 'PLTR',  'description': 'Palantir Technologies'},
+    {'symbol': 'BABA',  'description': 'Alibaba Group'},
+    {'symbol': 'DIS',   'description': 'Walt Disney Company'},
+    {'symbol': 'NIKE',  'description': 'Nike Inc'},
+    {'symbol': 'SBUX',  'description': 'Starbucks Corporation'},
+    {'symbol': 'COIN',  'description': 'Coinbase Global'},
+    {'symbol': 'SQ',    'description': 'Block Inc Square'},
+    {'symbol': 'JPM',   'description': 'JPMorgan Chase'},
+    {'symbol': 'BAC',   'description': 'Bank of America'},
+    {'symbol': 'GS',    'description': 'Goldman Sachs'},
+    {'symbol': 'V',     'description': 'Visa Inc'},
+    {'symbol': 'MA',    'description': 'Mastercard Inc'},
+    {'symbol': 'WMT',   'description': 'Walmart Inc'},
+    {'symbol': 'COST',  'description': 'Costco Wholesale'},
+    {'symbol': 'TGT',   'description': 'Target Corporation'},
 ]
 
 _cache = {}
 
 
-def get_quote(symbol: str):
-    sym = symbol.upper()
-    av_symbol = sym.replace('.NS', '.BSE')
+def _get_usd_to_inr():
     try:
         resp = requests.get(
-            ALPHA_BASE,
-            params={
-                'function': 'GLOBAL_QUOTE',
-                'symbol': av_symbol,
-                'apikey': ALPHA_VANTAGE_KEY,
-            },
-            timeout=10,
+            f"{FINNHUB_BASE}/forex/rates",
+            params={'base': 'USD', 'token': FINNHUB_KEY},
+            timeout=5,
         )
         data = resp.json()
-        quote = data.get('Global Quote', {})
-        price = float(quote.get('05. price', 0))
-        if price > 0:
-            _cache[sym] = price
-            return {'c': round(price, 2), 'pc': round(price * 0.99, 2), 'symbol': sym}
+        rate = data.get('quote', {}).get('INR')
+        if rate:
+            return float(rate)
+    except Exception:
+        pass
+    return USD_TO_INR
+
+
+def get_quote(symbol: str):
+    sym = symbol.upper()
+    try:
+        resp = requests.get(
+            f"{FINNHUB_BASE}/quote",
+            params={'symbol': sym, 'token': FINNHUB_KEY},
+            timeout=5,
+        )
+        data = resp.json()
+        usd_price = data.get('c', 0)
+        if usd_price and usd_price > 0:
+            rate = _get_usd_to_inr()
+            inr_price = round(usd_price * rate, 2)
+            _cache[sym] = inr_price
+            return {'c': inr_price, 'pc': round(data.get('pc', usd_price) * rate, 2), 'symbol': sym}
     except Exception:
         pass
 
     if sym in _cache:
         return {'c': _cache[sym], 'pc': _cache[sym], 'symbol': sym}
 
-    mock = MOCK_PRICES.get(sym)
-    if mock:
-        return {'c': mock, 'pc': mock * 0.99, 'symbol': sym}
+    mock_usd = MOCK_PRICES_USD.get(sym)
+    if mock_usd:
+        inr = round(mock_usd * USD_TO_INR, 2)
+        return {'c': inr, 'pc': round(inr * 0.99, 2), 'symbol': sym}
 
     return None
 
 
 def get_quotes(symbols):
     result = {}
+    # fetch rate once for all
+    rate = _get_usd_to_inr()
     for sym in symbols:
-        q = get_quote(sym)
-        if q:
-            result[sym.upper()] = q['c']
+        sym = sym.upper()
+        try:
+            resp = requests.get(
+                f"{FINNHUB_BASE}/quote",
+                params={'symbol': sym, 'token': FINNHUB_KEY},
+                timeout=5,
+            )
+            data = resp.json()
+            usd_price = data.get('c', 0)
+            if usd_price and usd_price > 0:
+                inr_price = round(usd_price * rate, 2)
+                _cache[sym] = inr_price
+                result[sym] = inr_price
+                continue
+        except Exception:
+            pass
+        if sym in _cache:
+            result[sym] = _cache[sym]
+        elif sym in MOCK_PRICES_USD:
+            result[sym] = round(MOCK_PRICES_USD[sym] * USD_TO_INR, 2)
     return result
 
 
